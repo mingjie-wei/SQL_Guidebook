@@ -11,7 +11,7 @@ cd SQL_Guidebook
 ```
 
 #### 2. Generate SQLite database
-#### a) create_hr_database
+#### 2.1 Create hr database
 ```
 def create_hr_database():
     # Create SQLite database
@@ -92,7 +92,7 @@ def create_hr_database():
     print("✅ HR database created successfully: company_hr.sqlite")
 ```
 
-#### b) insert_sample_data
+#### 2.2 Insert sample data
 ```
 def insert_sample_data(cursor):
 
@@ -178,7 +178,7 @@ def insert_sample_data(cursor):
 
 ```
 
-#### c) expected output:
+#### 2.3 Expected output:
 ```
 ✅ HR database created successfully: company_hr.sqlite
 ```
