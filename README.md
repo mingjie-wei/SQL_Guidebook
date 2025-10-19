@@ -184,13 +184,13 @@ def insert_sample_data(cursor):
 ```
 
 ### Step 2: Connect with DBeaver
-#### 1. Open DBeaver
+1. Open DBeaver
 
-#### 2. Create new connection and select SQLite
+2. Create new connection and select SQLite
 
-#### 3. Database file: browse and select `company_hr.sqlite`
+3. Database file: browse and select `company_hr.sqlite`
 
-#### 4. Click "Finish"
+4. Click "Finish"
 
 ### Step 3: Verify Connection
 Run a test query to verify the database:
@@ -214,22 +214,22 @@ The HR database contains 6 tables with realistic relationships:
 - `titles` - Job title history
 
 ## SQL Practice Exercises
-SELECT, WHERE, ORDER BY - Basic employee queries
+### 1. SELECT, WHERE, ORDER BY - Basic employee queries
 
-JOIN Operations - Combine employee and department data
+### 2. JOIN Operations - Combine employee and department data
 
-Aggregate Functions - Count, average, max/min analysis
+### 3. Aggregate Functions - Count, average, max/min analysis
 
-GROUP BY & HAVING - Department-level summaries
+### 4. GROUP BY & HAVING - Department-level summaries
 
-CASE WHEN - Data transformation and categorization
+### 5. CASE WHEN - Data transformation and categorization
 
-Window Functions - Rankings and partitions
+### 6. Window Functions - Rankings and partitions
 
-Common Table Expressions (CTE) - Complex query breakdown
+### 7. Common Table Expressions (CTE) - Complex query breakdown
 
-Date Functions - Tenure and timeline analysis
+### 8. Date Functions - Tenure and timeline analysis
 
-LAG/LEAD - Temporal data comparison
+### 9. LAG/LEAD - Temporal data comparison
 
-UNION/EXCEPT - Set operations
+### 10. UNION/EXCEPT - Set operations
