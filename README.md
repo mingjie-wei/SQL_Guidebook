@@ -216,8 +216,6 @@ The HR database contains 6 tables with realistic relationships:
 ## SQL Practice Exercises
 ### 1. SELECT, WHERE, ORDER BY - Basic employee queries
 ```
-/******** 01 - basic sql queries  ********/
-
 -- 1.1 Select all employees
 select * from employees;
 ```
@@ -299,16 +297,16 @@ order by 2 desc
 ![2.2](images/2.2.png)
 
 ```
--- 2.3 Department managers with employee details
+-- 2.3 Department managers with employee details (RIGHT JOIN)
 select t1.dept_no
 ,t2.dept_name
 ,t3.first_name
 ,t3.last_name
 ,t1.from_date as manager_since
-from dept_manager t1
-left join departments t2
+from departments t2
+right join dept_manager t1
 	on t1.dept_no = t2.dept_no 
-left join employees t3
+right join employees t3
 	on t1.emp_no = t3.emp_no 
 where t1.to_date = '9999-01-01'
 ;
@@ -324,13 +322,13 @@ select t1.emp_no
 ,t3.title
 ,t4.salary
 from employees t1
-left join dept_emp t0 
+join dept_emp t0 
 	on t0.emp_no = t1.emp_no
-left join departments t2 
+join departments t2 
 	on t0.dept_no = t2.dept_no
-left join titles t3 
+join titles t3 
 	on t1.emp_no = t3.emp_no
-left join salaries t4 
+join salaries t4 
 	on t1.emp_no = t4.emp_no
 where t0.to_date = '9999-01-01'
     and t3.to_date = '9999-01-01'
