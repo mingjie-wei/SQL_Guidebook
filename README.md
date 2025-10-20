@@ -501,7 +501,25 @@ order by high_earner_percentage desc
 ```
 ![5.1](images/5.1.png)
 
-### 8. Date Functions - Tenure and timeline analysis
+### 8. Date Functions - Tenure analysis
+```
+-- Employee tenure calculation
+select emp_no
+,first_name
+,hire_date
+,date() as current_date
+,julianday(date()) - julianday(hire_date) as days_employed
+,round((julianday(date()) - julianday(hire_date)) / 365.25, 2) as years_employed
+,case when (julianday(date()) - julianday(hire_date)) / 365.25 >= 5 then 'senior'
+      when (julianday(date()) - julianday(hire_date)) / 365.25 >= 2 then 'mid-level'
+      else 'junior'
+    end as experience_level
+from employees
+where hire_date is not null
+order by years_employed desc
+;
+```
+![7.1](images/7.1.png)
 
 ### 9. LAG/LEAD - Temporal data comparison
 ```
@@ -528,4 +546,92 @@ order by t4.title, t1.hire_date
 ```
 ![4.3](images/4.3.png)
 
-### 10. UNION/EXCEPT - Set operations
+### 10. Interview practice questions
+```
+-- 10.1 find the second highest salary in each department
+with rankedsalaries as (
+    select e.emp_no,
+        e.first_name,
+        e.last_name,
+        d.dept_name,
+        s.salary,
+        dense_rank() over (partition by d.dept_name order by s.salary desc) as salary_rank
+    from employees e
+    left join dept_emp de 
+    	on e.emp_no = de.emp_no
+    left join departments d 
+    	on de.dept_no = d.dept_no
+    left join salaries s 
+    	on e.emp_no = s.emp_no
+    where de.to_date = '9999-01-01'
+        and s.to_date = '9999-01-01'
+)
+select emp_no,
+    first_name,
+    last_name,
+    dept_name,
+    salary
+from rankedsalaries
+where salary_rank = 2
+;
+```
+![8.1](images/8.1.png)
+
+```
+-- 10.2 employees who are managers (self-join concept)
+select 
+    e.emp_no,
+    e.first_name,
+    e.last_name,
+    d.dept_name,
+    'manager' as role_type
+from employees e
+join dept_manager dm on e.emp_no = dm.emp_no
+join departments d on dm.dept_no = d.dept_no
+where dm.to_date = '9999-01-01'
+
+union
+
+select 
+    e.emp_no,
+    e.first_name,
+    e.last_name,
+    d.dept_name,
+    'regular employee' as role_type
+from employees e
+join dept_emp de on e.emp_no = de.emp_no
+join departments d on de.dept_no = d.dept_no
+left join dept_manager dm on e.emp_no = dm.emp_no and dm.to_date = '9999-01-01'
+where de.to_date = '9999-01-01'
+    and dm.emp_no is null
+;
+```
+![8.2](images/8.2.png)
+
+```
+-- 10.3 find departments where average salary is above company average
+with companystats as (
+    select 
+        avg(s.salary) as company_avg_salary
+    from salaries s
+    where s.to_date = '9999-01-01'
+)
+select 
+    d.dept_name,
+    count(distinct e.emp_no) as employee_count,
+    round(avg(s.salary), 2) as dept_avg_salary,
+    cs.company_avg_salary,
+    round(avg(s.salary) - cs.company_avg_salary, 2) as difference_from_avg
+from departments d
+join dept_emp de on d.dept_no = de.dept_no
+join employees e on de.emp_no = e.emp_no
+join salaries s on e.emp_no = s.emp_no
+cross join companystats cs
+where de.to_date = '9999-01-01'
+    and s.to_date = '9999-01-01'
+group by d.dept_name, cs.company_avg_salary
+having avg(s.salary) > cs.company_avg_salary
+order by difference_from_avg desc
+;
+```
+![8.3](images/8.3.png)
