@@ -950,7 +950,7 @@ SELECT
 FROM employees;
 ```
 
-## COALESCE and NULLIF
+### COALESCE and NULLIF
 ```
 -- Handle NULL values
 SELECT 
