@@ -341,7 +341,7 @@ where t0.to_date = '9999-01-01'
 
 ### 3. Aggregate Functions - Count, average, max/min analysis
 ```
--- 3.1 Department salary statistics
+-- Department salary statistics
 select t1.dept_name
 ,count(distinct t2.emp_no) as emp_cnt
 ,round(avg(t3.salary),2) as avg_salary
@@ -361,8 +361,9 @@ order by avg_salary desc
 ```
 ![3.1](images/3.1.png)
 
+### 4. GROUP BY & HAVING - Department-level summaries
 ```
--- 3.2 HAVING clause - departments with high average salary
+-- HAVING clause - departments with high average salary
 select t1.dept_name
 ,count(distinct t2.emp_no) as emp_cnt
 ,round(avg(t3.salary),2) as avg_salary
@@ -380,16 +381,153 @@ order by avg_salary desc
 ```
 ![3.2](images/3.2.png)
 
-### 4. GROUP BY & HAVING - Department-level summaries
-
 ### 5. CASE WHEN - Data transformation and categorization
+```
+-- CASE WHEN for salary categorization
+select t1.emp_no
+,t1.first_name
+,t1.last_name
+,t2.dept_name
+,t3.salary
+,case when t3.salary < 60000 then 'Entry Level'
+      when t3.salary between 60000 and 90000 then 'Mid Level'
+      when t3.salary between 90001 and 120000 then 'Senior Level'
+      else 'Executive'
+    end as salary_grade
+,case when t1.gender = 'M' then 'Male'
+      when t1.gender = 'F' then 'Female'
+      else 'Other'
+    end as gender_full
+from employees t1
+left join dept_emp t0 
+	on t1.emp_no = t0.emp_no
+left join departments t2 
+	on t0.dept_no = t2.dept_no
+left join salaries t3 
+	on t1.emp_no = t3.emp_no
+where t0.to_date = '9999-01-01'
+    and t3.to_date = '9999-01-01'
+order by t3.salary desc
+;
+```
+![6.1](images/6.1.png)
 
 ### 6. Window Functions - Rankings and partitions
+```
+-- 6.1 Salary ranking within departments
+select t1.emp_no
+,t1.first_name
+,t1.last_name
+,t2.dept_name
+,t3.salary
+,rank() over(partition by t2.dept_name order by t3.salary desc) as salary_rank
+,round(percent_rank() over(partition by t2.dept_name order by t3.salary),3) as percentile_rank
+from employees t1
+left join dept_emp t0 
+	on t1.emp_no = t0.emp_no 
+left join departments t2
+	on t0.dept_no = t2.dept_no 
+left join salaries t3
+	on t1.emp_no = t3.emp_no
+where t0.to_date = '9999-01-01'
+    and t3.to_date = '9999-01-01'
+order by t2.dept_name, salary_rank
+;
+```
+![4.1](images/4.1.png)
 
-### 7. Common Table Expressions (CTE) - Complex query breakdown
+```
+-- 6.2 Moving average and cumulative salary
+select t3.dept_no
+,t1.hire_date
+,t1.first_name
+,t1.last_name
+,t2.salary
+,round(avg(t2.salary) over(
+	partition by t3.dept_no order by t1.hire_date
+	rows between 2 preceding and current row),2) as moving_avg_salary
+,sum(t2.salary) over(
+	partition by t3.dept_no order by t1.hire_date) as cumulative_dept_salary
+from employees t1
+left join salaries t2
+	on t1.emp_no = t2.emp_no 
+left join dept_emp t3
+	on t1.emp_no = t3.emp_no 
+where t2.to_date = '9999-01-01'
+    and t3.to_date = '9999-01-01'
+order by t3.dept_no, t1.hire_date
+;
+```
+![4.2](images/4.2.png)
+
+### 7. Common Table Expressions (CTE) & COALESCE for handling missing data
+```
+-- Multiple CTEs for high_earners analysis
+with high_earners as (
+	select t1.emp_no
+	,t1.first_name
+	,t1.last_name
+	,t3.salary
+	,t2.dept_name
+	from employees t1
+	left join dept_emp t0
+		on t1.emp_no = t0.emp_no 
+	left join departments t2
+		on t0.dept_no = t2.dept_no 
+	left join salaries t3
+		on t1.emp_no = t3.emp_no 
+	where t3.salary > 100000
+		and t3.to_date = '9999-01-01'
+		and t0.to_date = '9999-01-01'
+),
+dept_high_earners as (
+	select dept_name
+	,count(*) as high_earner_count
+	from high_earners 
+	group by 1
+)
+
+select 
+    d.dept_name,
+    count(de.emp_no) as total_employees,
+    coalesce(dhec.high_earner_count, 0) as high_earners,
+    round(coalesce(dhec.high_earner_count, 0) * 100.0 / count(de.emp_no), 2) as high_earner_percentage
+from departments d
+left join dept_emp de 
+	on d.dept_no = de.dept_no and de.to_date = '9999-01-01'
+left join dept_high_earners dhec 
+	on d.dept_name = dhec.dept_name
+group by d.dept_name, dhec.high_earner_count
+order by high_earner_percentage desc
+;
+```
+![5.1](images/5.1.png)
 
 ### 8. Date Functions - Tenure and timeline analysis
 
 ### 9. LAG/LEAD - Temporal data comparison
+```
+-- LAG and LEAD for salary comparison
+select t1.emp_no
+,t1.hire_date 
+,t4.title
+,t3.salary as current_salary
+,lag(t3.salary) over (partition by t4.title order by t1.hire_date) as previous_salary
+,lead(t3.salary) over (partition by t4.title order by t1.hire_date) as next_salary
+from employees t1
+left join dept_emp t0
+	on t1.emp_no = t0.emp_no
+left join departments t2
+	on t0.dept_no = t2.dept_no
+left join salaries t3
+	on t1.emp_no = t3.emp_no
+left join titles t4
+	on t1.emp_no = t4.emp_no
+where t0.to_date = '9999-01-01'
+	and t4.to_date = '9999-01-01'
+order by t4.title, t1.hire_date
+;
+```
+![4.3](images/4.3.png)
 
 ### 10. UNION/EXCEPT - Set operations
