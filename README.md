@@ -635,3 +635,468 @@ order by difference_from_avg desc
 ;
 ```
 ![8.3](images/8.3.png)
+
+# PostgreSQL SQL Cheat Sheet
+
+## SQL Query Execution Order
+### Logical Execution Sequence:
+```
+1. FROM / JOIN      -- Identify data sources
+2. WHERE           -- Row-level filtering
+3. GROUP BY        -- Group rows
+4. HAVING          -- Group-level filtering
+5. SELECT          -- Select columns
+6. DISTINCT        -- Remove duplicates
+7. ORDER BY        -- Sort results
+8. LIMIT/OFFSET    -- Pagination
+```
+### Practical Example:
+```
+SELECT 
+    department_id,
+    COUNT(*) as emp_count,
+    AVG(salary) as avg_salary
+FROM employees
+JOIN departments USING(department_id)
+WHERE hire_date > '2020-01-01'
+GROUP BY department_id
+HAVING AVG(salary) > 50000
+ORDER BY avg_salary DESC
+LIMIT 10;
+```
+
+## Basic Queries
+### SELECT Statements
+```
+-- Basic queries
+SELECT * FROM table_name;
+SELECT column1, column2 FROM table_name;
+SELECT DISTINCT column1 FROM table_name;
+
+-- Conditional queries
+SELECT * FROM employees WHERE salary > 50000;
+SELECT * FROM employees WHERE name LIKE 'J%';
+SELECT * FROM employees WHERE department_id IN (1, 2, 3);
+SELECT * FROM employees WHERE salary BETWEEN 30000 AND 60000;
+
+-- Sorting and limiting
+SELECT * FROM employees ORDER BY hire_date DESC;
+SELECT * FROM employees ORDER BY salary DESC, name ASC;
+SELECT * FROM employees LIMIT 10 OFFSET 20;  -- Pagination
+```
+
+### Aggregate Functions
+```
+SELECT 
+    COUNT(*) as total_employees,
+    COUNT(DISTINCT department_id) as unique_departments,
+    AVG(salary) as average_salary,
+    MAX(salary) as max_salary,
+    MIN(salary) as min_salary,
+    SUM(salary) as total_salary_budget
+FROM employees;
+```
+
+## JOIN Operations
+### JOIN Types
+```
+-- INNER JOIN (default)
+SELECT e.name, d.department_name
+FROM employees e
+INNER JOIN departments d ON e.department_id = d.id;
+
+-- LEFT JOIN
+SELECT e.name, d.department_name
+FROM employees e
+LEFT JOIN departments d ON e.department_id = d.id;
+
+-- RIGHT JOIN
+SELECT e.name, d.department_name
+FROM employees e
+RIGHT JOIN departments d ON e.department_id = d.id;
+
+-- FULL OUTER JOIN
+SELECT e.name, d.department_name
+FROM employees e
+FULL OUTER JOIN departments d ON e.department_id = d.id;
+
+-- CROSS JOIN
+SELECT e.name, d.department_name
+FROM employees e
+CROSS JOIN departments d;
+
+-- SELF JOIN
+SELECT e1.name as employee, e2.name as manager
+FROM employees e1
+LEFT JOIN employees e2 ON e1.manager_id = e2.employee_id;
+```
+
+### Multiple Table Joins
+```
+SELECT 
+    e.first_name,
+    e.last_name,
+    d.department_name,
+    t.title,
+    s.salary
+FROM employees e
+JOIN dept_emp de ON e.emp_no = de.emp_no
+JOIN departments d ON de.dept_no = d.dept_no
+JOIN titles t ON e.emp_no = t.emp_no
+JOIN salaries s ON e.emp_no = s.emp_no
+WHERE de.to_date = '9999-01-01'
+  AND t.to_date = '9999-01-01'
+  AND s.to_date = '9999-01-01';
+```
+
+## Window Functions
+### Basic Window Functions
+```
+-- Ranking functions
+SELECT 
+    employee_id,
+    name,
+    salary,
+    RANK() OVER (ORDER BY salary DESC) as salary_rank,
+    DENSE_RANK() OVER (ORDER BY salary DESC) as salary_dense_rank,
+    ROW_NUMBER() OVER (ORDER BY salary DESC) as row_num
+FROM employees;
+
+-- Partitioned window functions
+SELECT 
+    department_id,
+    employee_id,
+    name,
+    salary,
+    AVG(salary) OVER (PARTITION BY department_id) as dept_avg_salary,
+    salary - AVG(salary) OVER (PARTITION BY department_id) as diff_from_avg
+FROM employees;
+```
+
+### Advanced Window Functions
+```
+-- LAG/LEAD for time series analysis
+SELECT 
+    employee_id,
+    salary_date,
+    salary,
+    LAG(salary) OVER (PARTITION BY employee_id ORDER BY salary_date) as prev_salary,
+    LEAD(salary) OVER (PARTITION BY employee_id ORDER BY salary_date) as next_salary,
+    salary - LAG(salary) OVER (PARTITION BY employee_id ORDER BY salary_date) as salary_change
+FROM salaries;
+
+-- Moving averages and cumulative sums
+SELECT 
+    employee_id,
+    salary_date,
+    salary,
+    AVG(salary) OVER (
+        PARTITION BY employee_id 
+        ORDER BY salary_date 
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW
+    ) as moving_avg,
+    SUM(salary) OVER (
+        PARTITION BY employee_id 
+        ORDER BY salary_date
+        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) as cumulative_salary
+FROM salaries;
+```
+
+## Common Table Expressions (CTEs) & Subqueries
+### Common Table Expressions
+```
+-- Simple CTE
+WITH DepartmentStats AS (
+    SELECT 
+        department_id,
+        COUNT(*) as employee_count,
+        AVG(salary) as avg_salary
+    FROM employees
+    GROUP BY department_id
+)
+SELECT * FROM DepartmentStats WHERE avg_salary > 50000;
+
+-- Multiple CTEs
+WITH 
+HighEarners AS (
+    SELECT employee_id, salary
+    FROM employees
+    WHERE salary > 100000
+),
+DepartmentHighEarners AS (
+    SELECT 
+        d.department_name,
+        COUNT(he.employee_id) as high_earner_count
+    FROM departments d
+    LEFT JOIN employees e ON d.department_id = e.department_id
+    LEFT JOIN HighEarners he ON e.employee_id = he.employee_id
+    GROUP BY d.department_name
+)
+SELECT * FROM DepartmentHighEarners ORDER BY high_earner_count DESC;
+```
+
+### Recursive CTEs
+```
+-- Organizational hierarchy query
+WITH RECURSIVE EmployeeHierarchy AS (
+    -- Base case: top-level managers
+    SELECT 
+        employee_id,
+        name,
+        manager_id,
+        1 as level,
+        ARRAY[employee_id] as path
+    FROM employees
+    WHERE manager_id IS NULL
+    
+    UNION ALL
+    
+    -- Recursive case: subordinates
+    SELECT 
+        e.employee_id,
+        e.name,
+        e.manager_id,
+        eh.level + 1,
+        eh.path || e.employee_id
+    FROM employees e
+    JOIN EmployeeHierarchy eh ON e.manager_id = eh.employee_id
+)
+SELECT * FROM EmployeeHierarchy ORDER BY path;
+```
+
+## Data Modification
+### INSERT Operations
+```
+-- Insert single row
+INSERT INTO employees (first_name, last_name, hire_date, salary)
+VALUES ('John', 'Doe', '2024-01-15', 60000);
+
+-- Insert multiple rows
+INSERT INTO employees (first_name, last_name, hire_date, salary)
+VALUES 
+    ('Jane', 'Smith', '2024-01-16', 65000),
+    ('Bob', 'Johnson', '2024-01-17', 70000);
+
+-- Insert from query results
+INSERT INTO employee_archive
+SELECT * FROM employees WHERE hire_date < '2020-01-01';
+```
+
+### UPDATE Operations
+```
+-- Basic update
+UPDATE employees 
+SET salary = salary * 1.05 
+WHERE department_id = 1;
+
+-- Update with subquery
+UPDATE employees 
+SET salary = (
+    SELECT AVG(salary) 
+    FROM employees 
+    WHERE department_id = employees.department_id
+) 
+WHERE salary < 50000;
+
+-- Update with JOIN
+UPDATE employees 
+SET salary = salary * 1.10
+FROM departments 
+WHERE employees.department_id = departments.department_id
+AND departments.department_name = 'Engineering';
+```
+
+### DELETE Operations
+```
+-- Delete specific rows
+DELETE FROM employees 
+WHERE hire_date < '2010-01-01';
+
+-- Delete with subquery
+DELETE FROM employees 
+WHERE department_id IN (
+    SELECT department_id 
+    FROM departments 
+    WHERE location = 'Remote'
+);
+```
+
+## Conditional Logic
+### CASE Expressions
+```
+-- Simple CASE
+SELECT 
+    name,
+    salary,
+    CASE 
+        WHEN salary < 50000 THEN 'Entry Level'
+        WHEN salary BETWEEN 50000 AND 80000 THEN 'Mid Level'
+        WHEN salary BETWEEN 80001 AND 120000 THEN 'Senior Level'
+        ELSE 'Executive'
+    END as salary_grade
+FROM employees;
+
+-- Searched CASE
+SELECT 
+    name,
+    department_id,
+    CASE department_id
+        WHEN 1 THEN 'Engineering'
+        WHEN 2 THEN 'Sales'
+        WHEN 3 THEN 'Marketing'
+        ELSE 'Other'
+    END as department_name
+FROM employees;
+```
+
+## COALESCE and NULLIF
+```
+-- Handle NULL values
+SELECT 
+    name,
+    COALESCE(manager_id, 0) as manager_id,  -- Return 0 if NULL
+    COALESCE(bonus, 0) as bonus_amount,
+    NULLIF(salary, 0) as salary_no_zero  -- Return NULL if salary=0
+FROM employees;
+```
+
+## Date & Time Functions
+### Date Operations
+```
+-- Current date and time
+SELECT 
+    CURRENT_DATE as today,
+    CURRENT_TIME as now_time,
+    CURRENT_TIMESTAMP as now_timestamp,
+    NOW() as current_datetime;
+
+-- Date extraction and calculation
+SELECT 
+    hire_date,
+    EXTRACT(YEAR FROM hire_date) as hire_year,
+    EXTRACT(MONTH FROM hire_date) as hire_month,
+    AGE(CURRENT_DATE, hire_date) as tenure,
+    hire_date + INTERVAL '1 year' as one_year_anniversary,
+    hire_date - INTERVAL '1 month' as one_month_ago
+FROM employees;
+
+-- Date formatting
+SELECT 
+    hire_date,
+    TO_CHAR(hire_date, 'YYYY-MM-DD') as iso_format,
+    TO_CHAR(hire_date, 'Month DD, YYYY') as readable_format,
+    TO_CHAR(hire_date, 'Day') as day_of_week
+FROM employees;
+```
+
+## String Functions
+### String Operations
+```
+SELECT 
+    first_name,
+    last_name,
+    -- Concatenation
+    first_name || ' ' || last_name as full_name,
+    CONCAT(first_name, ' ', last_name) as full_name2,
+    
+    -- Case conversion
+    UPPER(first_name) as upper_first,
+    LOWER(last_name) as lower_last,
+    INITCAP(first_name) as proper_first,
+    
+    -- Substring and position
+    LENGTH(first_name) as name_length,
+    SUBSTRING(first_name FROM 1 FOR 3) as first_three,
+    POSITION('a' IN first_name) as a_position,
+    
+    -- Trimming and padding
+    TRIM(first_name) as trimmed_name,
+    LPAD(salary::text, 10, '0') as padded_salary,
+    
+    -- Replacement
+    REPLACE(first_name, 'a', '@') as replaced_name
+FROM employees;
+```
+
+## Set Operations
+### UNION, INTERSECT, EXCEPT
+```
+-- UNION (removes duplicates)
+SELECT name FROM current_employees
+UNION
+SELECT name FROM former_employees;
+
+-- UNION ALL (keeps duplicates)
+SELECT name FROM engineering_dept
+UNION ALL
+SELECT name FROM sales_dept;
+
+-- INTERSECT (common records)
+SELECT employee_id FROM full_time_employees
+INTERSECT
+SELECT employee_id FROM high_performers;
+
+-- EXCEPT (difference)
+SELECT employee_id FROM all_employees
+EXCEPT
+SELECT employee_id FROM managers;
+```
+
+## Grouping & Filtering
+### GROUP BY and HAVING
+```
+-- Basic grouping
+SELECT 
+    department_id,
+    COUNT(*) as employee_count,
+    AVG(salary) as avg_salary,
+    MAX(salary) as max_salary
+FROM employees
+GROUP BY department_id;
+
+-- Multiple column grouping
+SELECT 
+    department_id,
+    EXTRACT(YEAR FROM hire_date) as hire_year,
+    COUNT(*) as hires_count
+FROM employees
+GROUP BY department_id, EXTRACT(YEAR FROM hire_date);
+
+-- HAVING for group filtering
+SELECT 
+    department_id,
+    AVG(salary) as avg_salary
+FROM employees
+GROUP BY department_id
+HAVING AVG(salary) > 50000
+   AND COUNT(*) > 5;
+```
+
+## Practical Tips
+### Performance Optimization
+```
+-- Use EXPLAIN to analyze query plan
+EXPLAIN ANALYZE SELECT * FROM employees WHERE salary > 50000;
+
+-- Create indexes
+CREATE INDEX idx_employees_salary ON employees(salary);
+CREATE INDEX idx_employees_dept_date ON employees(department_id, hire_date);
+
+-- Avoid SELECT *
+SELECT employee_id, name FROM employees;  -- Better
+SELECT * FROM employees;  -- Worse
+```
+
+### Quick Reference Tips
+1. Execution Order Mnemonic: "From Where Group Having Select Order Limit"
+
+2. JOIN Performance: Filter in WHERE clause rather than after JOIN
+
+3. Index Usage: Create indexes on frequently queried columns
+
+4. CTE Benefits: Improve readability, can be referenced multiple times
+
+5. Window Functions: Use for complex analytics without aggregating data
+
+6. PostgreSQL Extras: Leverage JSON, arrays, and full-text search capabilities
